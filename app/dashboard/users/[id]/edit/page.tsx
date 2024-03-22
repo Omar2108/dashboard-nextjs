@@ -1,20 +1,21 @@
-import Form from '@/app/ui/customers/edit-form';
+import Form from '@/app/ui/users/user-edit';
 import Breadcrumbs from '@/app/ui/customers/breadcrumbs';
-import { fetchCustomerById} from '@/app/lib/data';
+import { fetchUserById } from '@/app/lib/data';
 import { notFound } from 'next/navigation';
+
 import { Metadata } from 'next';
  
 export const metadata: Metadata = {
-  title: 'Customers | edit',
+  title: 'Users | edit',
 };
 
 export default async function Page({ params }: { params: { id: string } }) {
     const id = params.id;
-    const [customer] = await Promise.all([
-      fetchCustomerById(id),
+    const [user] = await Promise.all([
+      fetchUserById(id),
     ]);
 
-    if (!customer) {
+    if (!user) {
         notFound();
       }
     
@@ -22,15 +23,15 @@ export default async function Page({ params }: { params: { id: string } }) {
         <main>
             <Breadcrumbs
                 breadcrumbs={[
-                    { label: 'Customers', href: '/dashboard/customers' },
+                    { label: 'Users', href: '/dashboard/users' },
                     {
-                        label: 'Edit Customer',
-                        href: `/dashboard/customers/${id}/edit`,
+                        label: 'Edit Users',
+                        href: `/dashboard/users/${id}/edit`,
                         active: true,
                     },
                 ]}
             />
-            <Form customers={customer} />
+            <Form user={user} />
         </main>
     );
 }

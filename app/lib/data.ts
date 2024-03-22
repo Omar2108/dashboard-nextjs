@@ -238,7 +238,7 @@ export async function fetchCustomersPages(query: string) {
     return totalPages;
   } catch (error) {
     console.error('Database Error:', error);
-    throw new Error('Failed to fetch total number of invoices.');
+    throw new Error('Failed to fetch total number of customers.');
   }
 }
 
@@ -266,13 +266,63 @@ export async function fetchCustomerById(id: string) {
   }
 }
 
+export async function fetchUserById(id: string) {
+  noStore();
+  try {
+    const data = await sql<User>`
+      SELECT
+        users.id,
+        users.name,
+        users.email,
+        users.password
+      FROM users
+      WHERE users.id = ${id};
+    `;
+
+    const user = data.rows.map((user) => ({
+      ...user
+    }));
+
+    return user[0];
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch user.');
+  }
+}
+
 export async function getUser(email: string) {
   noStore();
   try {
     const user = await sql`SELECT * FROM users WHERE email=${email}`;
-    return user.rows[0] as User;
+    return user.rows[0];
   } catch (error) {
     console.error('Failed to fetch user:', error);
     throw new Error('Failed to fetch user.');
+  }
+}
+
+export async function fetchUsersPages(query: string) {
+  noStore();
+  try {
+    const count = await sql`SELECT COUNT(*)
+    FROM users
+  `;
+
+    const totalPages = Math.ceil(Number(count.rows[0].count) / ITEMS_PER_PAGE);
+    return totalPages;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch total number of users.');
+  }
+}
+
+export async function fetchUsers() {
+  noStore();
+  try {
+    const user = await sql`SELECT * FROM users`;
+    return user.rows;
+  } catch (error) {
+    console.error('Failed to fetch users:', error);
+    throw new Error('Failed to fetch users.');
   }
 }

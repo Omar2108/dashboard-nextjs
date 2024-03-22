@@ -7,10 +7,9 @@ import { redirect } from 'next/navigation';
 import { signIn } from '@/auth';
 import { AuthError } from 'next-auth';
 import path from 'path';
-import fs, { readFile } from 'fs/promises';
 import { writeFile } from 'fs/promises';
-import { fileURLToPath } from 'url';
 import { fetchCustomerById } from './data';
+import bcrypt from 'bcrypt';
 
 
 const FormSchema = z.object({
@@ -25,6 +24,19 @@ const FormSchema = z.object({
     invalid_type_error: 'Please select an invoice status.',
   }),
   date: z.string(),
+});
+
+const UserShema = z.object({
+  id: z.string(),
+  name: z.string({
+    invalid_type_error: 'Please enter a name.',
+  }),
+  email: z.string({
+    invalid_type_error: 'Please enter a email.',
+  }).email(),
+  password: z.string({
+    invalid_type_error: 'Please enter a password.',
+  }),
 });
 
 const FormSchemaCustomers = z.object({
@@ -49,6 +61,15 @@ export type State = {
     customerId?: string[];
     amount?: string[];
     status?: string[];
+  };
+  message?: string | null;
+};
+
+export type StateUser = {
+  errors?: {
+    name?: string[];
+    email?: string[];
+    password?: string[];
   };
   message?: string | null;
 };
@@ -294,5 +315,107 @@ export async function deleteCustomer(id: string) {
     return { message: 'Deleted customer' };
   } catch (error) {
     return { message: 'Database Error: Failed to Delete Customer' };
+  }
+}
+
+const CreateUser = UserShema.omit({ id: true });
+
+export async function createUser(prevState: StateUser, formData: FormData) {
+
+  const validatedFields = CreateUser.safeParse({
+    name: formData.get('name_user'),
+    email: formData.get('email_user'),
+    password: formData.get('pass_user'),
+  });
+
+  // If form validation fails, return errors early. Otherwise, continue.
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: 'Missing Fields. Failed to Create User.',
+    };
+  }
+
+  
+  const {email, name, password } = validatedFields.data;
+
+  const saltRounds = 10;
+  const salt = await bcrypt.genSalt(saltRounds);
+  const passwordsMatch = await bcrypt.hash(password, salt);
+  
+
+  try {
+
+    await sql`
+      INSERT INTO users (name, email, password)
+      VALUES (${name}, ${email}, ${passwordsMatch})
+    `;
+  } catch (error) {
+    return {
+      message: 'Database Error: Failed to Create User.',
+    };
+  }
+
+  // Revalidate the cache for the invoices page and redirect the user.
+  revalidatePath('/dashboard/users');
+  redirect('/dashboard/users');
+}
+
+const UpdateUser = UserShema.omit({ id: true });
+
+export async function updateUser(
+  id: string, 
+  prevState: StateUser, 
+  formData: FormData
+  ) {
+
+  const validatedFields = UpdateUser.safeParse({
+    name: formData.get('name_user'),
+    email: formData.get('email_user'),
+    password: formData.get('pass_user'),
+  });
+
+  // If form validation fails, return errors early. Otherwise, continue.
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: 'Missing Fields. Failed to Create User.',
+    };
+  }
+
+  const {email, name, password } = validatedFields.data;
+
+  const saltRounds = 10;
+  const salt = await bcrypt.genSalt(saltRounds);
+  const passwordsMatch = await bcrypt.hash(password, salt);
+
+  try {
+
+    await sql`
+      UPDATE users
+      SET name = ${name}, email = ${email}, password = ${passwordsMatch}
+      WHERE id = ${id}
+    `;
+  } catch (error) {
+    return {
+      message: 'Database Error: Failed to Update User.',
+    };
+  }
+
+  // Revalidate the cache for the invoices page and redirect the user.
+  revalidatePath('/dashboard/users');
+  redirect('/dashboard/users');
+}
+
+export async function deleteUser(id: string) {
+  
+  try {
+
+    await sql`DELETE FROM users WHERE id = ${id}`;
+    revalidatePath('/dashboard/users');
+
+    return { message: 'Deleted User' };
+  } catch (error) {
+    return { message: 'Database Error: Failed to Delete User' };
   }
 }
